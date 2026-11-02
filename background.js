@@ -38,6 +38,9 @@ function getTargetPath(currentPath, isWordPress) {
 }
 
 function isBackendPath(currentPath, savedPath) {
+  if (currentPath.startsWith("/wp-admin") || currentPath.startsWith("/wp-login.php")) {
+    return true;
+  }
   if (!savedPath || savedPath === "/") {
     return false;
   }
