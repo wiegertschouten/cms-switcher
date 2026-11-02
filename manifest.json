@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "CMS Switcher",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Toggle between a site's front end and CMS backend with per-site saved paths. No data collection.",
   "permissions": ["activeTab", "scripting", "tabs", "storage", "webRequest"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Edit CMS path"
   },
   "commands": {
     "toggle-cms": {

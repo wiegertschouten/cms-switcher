@@ -54,6 +54,23 @@ async function getActiveTab() {
   return tab;
 }
 
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    const url = new URL(tab?.url || "");
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return;
+    }
+
+    const origin = url.origin;
+    const { cmsPaths } = await chrome.storage.sync.get({ cmsPaths: {} });
+    const savedPath = cmsPaths[origin];
+
+    showPathPrompt(tab.id, origin, savedPath || null);
+  } catch {
+    // No-op: keep the extension silent and lightweight.
+  }
+});
+
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== COMMAND_NAME) {
     return;
