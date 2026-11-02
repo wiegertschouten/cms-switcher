@@ -189,9 +189,21 @@ function showPathPrompt(tabId, origin, attemptedPath) {
 
           const shadow = host.attachShadow({ mode: "closed" });
 
+          const style = document.createElement("style");
+          style.textContent = `
+            @keyframes cms-switcher-slide-in {
+              from { transform: translateY(24px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+            @keyframes cms-switcher-spin {
+              to { transform: rotate(360deg); }
+            }
+          `;
+          shadow.append(style);
+
           const form = document.createElement("form");
           form.style.cssText =
-            "display:flex;gap:8px;align-items:center;background:#1f2430;color:#e8e8e8;padding:10px 12px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.4);font:13px/1.4 system-ui,-apple-system,sans-serif";
+            "display:flex;gap:8px;align-items:center;background:#1f2430;color:#e8e8e8;padding:10px 12px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.4);font:13px/1.4 system-ui,-apple-system,sans-serif;animation:cms-switcher-slide-in .22s cubic-bezier(.2,.7,.3,1) both";
 
           const label = document.createElement("span");
           label.textContent = "CMS path";
@@ -215,8 +227,11 @@ function showPathPrompt(tabId, origin, attemptedPath) {
           form.append(label, input, button);
           shadow.append(form);
 
+          let clearButton = null;
+
           if (savedPath) {
             const clear = document.createElement("button");
+            clearButton = clear;
             clear.type = "button";
             clear.textContent = "Clear saved path";
             clear.style.cssText =
@@ -224,11 +239,35 @@ function showPathPrompt(tabId, origin, attemptedPath) {
             form.append(clear);
 
             clear.addEventListener("click", () => {
+              setLoading("Clearing…", true);
               delete cmsPaths[promptOrigin];
               chrome.storage.sync.set({ cmsPaths }, () => {
                 dismiss();
               });
             });
+          }
+
+          function setLoading(text, dim) {
+            input.disabled = true;
+            button.disabled = true;
+            if (clearButton) {
+              clearButton.disabled = true;
+              clearButton.style.cursor = "default";
+            }
+            button.style.background = "#7da2fb";
+            button.style.cursor = "default";
+            label.style.opacity = "0.5";
+
+            while (button.firstChild) {
+              button.removeChild(button.firstChild);
+            }
+            if (!dim) {
+              const spinner = document.createElement("span");
+              spinner.style.cssText =
+                "display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:cms-switcher-spin .7s linear infinite;margin-right:6px;vertical-align:-1px";
+              button.append(spinner);
+            }
+            button.append(document.createTextNode(text));
           }
 
           function dismiss() {
@@ -267,10 +306,13 @@ function showPathPrompt(tabId, origin, attemptedPath) {
               path = path.replace(/\/+$/, "");
             }
 
+            setLoading("Saving…");
+
             chrome.storage.sync.get({ cmsPaths: {} }, (res) => {
               const cmsPaths = res.cmsPaths || {};
               cmsPaths[promptOrigin] = path;
               chrome.storage.sync.set({ cmsPaths }, () => {
+                setLoading("Navigating to " + path + "…");
                 window.location.href = promptOrigin + path;
               });
             });
