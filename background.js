@@ -104,26 +104,51 @@ chrome.webRequest.onHeadersReceived.addListener(
     if (!pending) {
       return;
     }
-    PENDING_NAVIGATIONS.delete(details.tabId);
-
     if (details.statusCode === 404) {
-      showPathPrompt(details.tabId, pending.origin, pending.attemptedPath);
+      pending.saw404 = true;
     }
   },
   { urls: ["<all_urls>"], types: ["main_frame"] }
 );
 
-function clearPendingNavigation(details) {
+chrome.webRequest.onErrorOccurred.addListener((details) => {
   PENDING_NAVIGATIONS.delete(details.tabId);
-}
-
-chrome.webRequest.onCompleted.addListener(clearPendingNavigation, {
+}, {
   urls: ["<all_urls>"],
   types: ["main_frame"],
 });
-chrome.webRequest.onErrorOccurred.addListener(clearPendingNavigation, {
-  urls: ["<all_urls>"],
-  types: ["main_frame"],
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== "complete") {
+    return;
+  }
+
+  const pending = PENDING_NAVIGATIONS.get(tabId);
+  if (!pending) {
+    return;
+  }
+
+  let landingPath = null;
+  try {
+    const landing = new URL(tab.url || "");
+    if (
+      (landing.protocol === "http:" || landing.protocol === "https:") &&
+      landing.origin === pending.origin
+    ) {
+      landingPath = landing.pathname;
+    }
+  } catch {
+    // No-op: try to fall back to status-based detection below.
+  }
+
+  const failed =
+    pending.saw404 || landingPath === "/404" || landingPath === "/404/";
+
+  PENDING_NAVIGATIONS.delete(tabId);
+
+  if (failed) {
+    showPathPrompt(tabId, pending.origin, pending.attemptedPath);
+  }
 });
 
 function showPathPrompt(tabId, origin, attemptedPath) {
